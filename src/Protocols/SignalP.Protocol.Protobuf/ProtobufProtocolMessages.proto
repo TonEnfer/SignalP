@@ -1,0 +1,86 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+package SignalP.Protocol.Protobuf;
+
+message ProtobufProtocolMessage
+{
+    oneof Message 
+    {
+        Invocation Invocation = 1;
+        StreamItem StreamItem = 2;
+        Completion Completion = 3;
+        StreamInvocation StreamInvocation = 4;
+        CancelInvocation CancelInvocation = 5;
+        Ping Ping = 6;
+        Close Close = 7;
+        Ack Ack = 8;
+        Sequence Sequence = 9;
+    }
+}
+
+message Argument
+{
+    google.protobuf.Any Proto = 1;
+}
+
+message Invocation
+{
+    map<string, string> Headers = 1;
+    optional string InvocationId = 2;
+    string Target = 3;
+    repeated Argument Arguments = 4;
+    repeated string StreamIds = 5;
+}
+
+message StreamItem
+{
+    map<string, string> Headers = 1;
+    optional string InvocationId = 2;
+    Argument Item = 3;
+}
+
+message Completion
+{
+    map<string, string> Headers = 1;
+    optional string InvocationId = 2;
+    oneof Result
+    {
+        string Error = 4;
+        Argument Item = 5;
+    }
+}
+
+message StreamInvocation
+{
+    map<string, string> Headers = 1;
+    string InvocationId = 2;
+    string Target = 3;
+    repeated Argument Arguments = 4;
+    repeated string StreamIds = 5;
+}
+
+message CancelInvocation
+{
+    map<string, string> Headers = 1;
+    string InvocationId = 2;
+}
+
+message Ping { }
+
+message Close
+{
+    string Error = 1;
+    optional bool AllowReconnect = 2;
+}
+
+message Ack
+{
+    int64 SequenceId = 1;
+}
+
+message Sequence
+{
+    int64 SequenceId = 1;
+}

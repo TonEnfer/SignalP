@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net6.0;net8.0;net9.0;net481</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="CommunityToolkit.HighPerformance" />
+	  <PackageReference Include="FluentAssertions" />
+	  <PackageReference Include="Microsoft.NET.Test.Sdk" />
+	  <PackageReference Include="Moq.AutoMock" />
+	  <PackageReference Include="protobuf-net" />
+	  <PackageReference Include="protobuf-net.Core" />
+	  <PackageReference Include="xunit" />
+	  <PackageReference Include="xunit.runner.visualstudio">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\..\src\Protocols\SignalP.Protocol.Protobuf\SignalP.Protocol.Protobuf.csproj" />
+	</ItemGroup>
+
+</Project>

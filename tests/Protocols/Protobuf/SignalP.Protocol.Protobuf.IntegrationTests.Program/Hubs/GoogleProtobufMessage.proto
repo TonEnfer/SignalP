@@ -1,0 +1,12 @@
+﻿syntax = "proto3";
+
+message GoogleProtobufMessage
+{
+	int32 Field1 = 1;
+	string Field2 = 2;
+}
+
+message ListOfGoogleProtobufMessages
+{
+	repeated GoogleProtobufMessage Messages = 1;
+}
