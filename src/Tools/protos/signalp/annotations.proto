@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package signalp;
+option csharp_namespace = "SignalP.Annotations";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions {
+  Implementation implementation = 50003;
+}
+
+extend google.protobuf.ServiceOptions {
+  string hub_route = 50003;
+}
+
+message Implementation
+{
+	Side side = 1;
+	Streaming streaming = 2;
+
+	enum Side
+	{
+		SERVER = 0;
+		CLIENT = 1;
+	}
+
+	message Streaming
+	{
+		StreamingStyle client_to_server = 1;
+		StreamingStyle server_to_client = 2;
+
+		enum StreamingStyle
+		{
+			ASYNC_ENUMERABLE = 0;
+			CHANNEL = 1;
+		}
+	}
+}

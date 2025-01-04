@@ -2,5 +2,5 @@
 
 namespace SignalP.Protocol.Protobuf.IntegrationTests;
 
-public class WebAppFactory: WebApplicationFactory<Program.Program>
-{ }
+// ReSharper disable once ClassNeverInstantiated.Global
+public class WebAppFactory: WebApplicationFactory<Program.Program>;
