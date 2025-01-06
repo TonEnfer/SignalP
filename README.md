@@ -16,6 +16,7 @@ Currently there is only support for C# clients, there is no support for other of
 
 #### Usage
 To use the protocol, install the nuget package
+
 ```shell
 dotnet add package SignalP.Protocol.Protobuf
 ```
@@ -33,4 +34,143 @@ var connection = new HubConnectionBuilder().AddProtobufProtocol().OtherConfigura
 
 ## Code generation
 
+SignalP provides plugins for the protobuf compiler (protoc) to generate client and server parts for SignalR hubs.
+
+### SignalR vs gRPC
+#### Implementation side
+Since SignalR, unlike gRPC, provides calls not only client-to-server but also in the opposite direction, SignalP provides the ability to configure where to implement the method - on the server or the client.
+
+The specified settings are made using the option applied to the methods:
+```proto
+import "signalp/annotations.proto"; // contains options
+
+service HelloService
+{
+    rpc ServerMethod (google.protobuf.StringValue)
+    returns (google.protobuf.Empty)
+    {
+         option (signalp.implementation) = {
+            side: SERVER; // This setting will force the generator to implement the specified RPC on the server side.
+        };
+    };
+
+    rpc ServerMethod (google.protobuf.StringValue)
+    returns (google.protobuf.Empty) // Return type for client-side methods always be google.protobuf.Empty
+    {
+         option (signalp.implementation) = {
+            side: CLIENT; // This setting will force the generator to implement the specified RPC on the client side.
+        };
+    };
+}
+```
+
+Since client-side methods in SignalR never have a return value, and protobuf syntax requires a return type to always be specified, the return type for them should always be `google.protobuf.Empty` from `google.protobuf.Empty.proto`. Other types will be ignored.
+
+By default, the generator implements all methods on the server side.
+
+#### Streams
+Streaming methods in SignalR, as well as in gRPC, are implemented only on the server side, however, unlike gRPC, SignalR does not provide special wrapper types for working with streams, but works with standard types - `System.Collections.Generic.IAsyncEnumerable<T>` or `System.Threading.Channels.ChannelReader<T>`/`System.Threading.Channels.ChannelWriter<T>` in case of C# or `Subject` in case of JS/TS. For details see the official ASP.NET Core SignalR [docs](https://learn.microsoft.com/en-us/aspnet/core/signalr/streaming)
+
+Since streaming methods are always implemented on the server side, and the only official server implementation is written in .NET, SignalP provides the ability to configure the data type used for streams - `System.Collections.Generic.IAsyncEnumerable<T>` or `System.Threading.Channels.ChannelReader<T>`/`System.Threading.Channels.ChannelWriter<T>`
+
+```proto
+import "signalp/annotations.proto"; // contains options
+
+service HelloService
+{
+    rpc ServerMethod (stream google.protobuf.StringValue)
+    returns (stream google.protobuf.StringValue)
+    {
+         option (signalp.implementation) = {
+            streaming: {
+                client_to_server: ASYNC_ENUMERABLE; // use IAsyncEnumerable<string> as implemented method parameter
+                server_to_client: CHANNEL; // use ChannelReader<string> as method return type
+            }
+        };
+    };
+}
+```
+#### Message types
+
+Unlike gRPC, the only officially supported data serialization formats for SignalR are JSON and MessagePack. While SignalP provides a Protobuf-based implementation of the SignalR protocol, it also allows generating hubs and client code for officially supported protocols.
+
+The plugins supports the `message_style` option, which can have the following possible values: `json` (default value), `messagepack`, `protobuf`. Changing the value of this option affects the target protocol for which the code will be generated.
+
+When using a value other than `protobuf`, the plugin automatically generates models compatible with the specified target protocol.
+
+#### Routes
+
+Unlike gRPC, hubs in SignalR can be mapped to different URLs by the user.
+Currently, SignalP provides a service-level option to specify a route for a hub, but this option is ignored by plugins.
+
+```proto
+import "signalp/annotations.proto"; // contains options
+
+service HelloService
+{
+    option (signalp.hub_route) = "/HelloServiceHub"; // route for HelloService hub
+
+    rpc ServerMethod (stream google.protobuf.StringValue)
+    returns (stream google.protobuf.StringValue);
+}
+```
+In the future, we plan to add route handling to SignalP to make users happier.
+
+### C#
+
+#### Manual plugin usage
+
+Despite the examples provided here, you should also study the documentation for the protobuf compiler.
+
+To use the plugin, you need to download the C# plugin from the releases page, as well as [protobuf compiler (protoc)](https://github.com/protocolbuffers/protobuf/releases).
+
+
+Simple usage example:
+
+```shell
+protoc --plugin=protoc-gen-signalr=$PATH_TO_PLUGIN/SignalP.Tools.ProtocPlugin.Csharp -I$PATH_TO_PLUGIN/protos/ --signalr_out=$OUTPUT_PATH --csharp_out=$OUTPUT_PATH -I$INPUT_PATH FILE.proto
+```
+where:
+* `protoc` - protobuf compiler executable
+* `$PATH_TO_PLUGIN` is the path to the plugin executable file
+* `$OUTPUT_PATH` - path to generation results
+* `$INPUT_PATH` - path to `.proto` files for generate
+* `FILE.proto` - source file for code generation
+
+Using with options:
+```shell
+protoc --plugin=protoc-gen-signalr=$PATH_TO_PLUGIN/SignalP.Tools.ProtocPlugin.Csharp -I$PATH_TO_PLUGIN/protos/ --signalr_out=opt1=opt1_value,opt2=opt2_value:$OUTPUT_PATH --csharp_out=$OUTPUT_PATH -I$INPUT_PATH FILE.proto
+```
+where `opt1` - first option name, `opt1_value` - first option value, `opt2` - second option name, `opt2_value` - second option value.
+
+The plugin supports the following options that affect the generation result:
+
+| Name            | Description                                                                   | Default value | Avalilable values                  |
+| --------------- | ----------------------------------------------------------------------------- | ------------- | ---------------------------------- |
+| message_style   | Target protocol type (see [Message types](#message-types))                    | `Json`        | `Json`, `MessagePack`, `Protobuf`  |
+| generate        | What part of the service (server or client) should be generated               | `Bath`        | `None`, `Server`, `Client`, `Bath` |
+| internal_access | Visibility of the generated service - public if `false` or internal if `true` | `true`        | `true`, `false`                    |
+
+When using target protocols other than `Protobuf`, the generated code replaces the parameter and return types of methods if source type is [Well-Known](https://protobuf.dev/reference/protobuf/google.protobuf/).
+
+| Well-Known Protobuf type | Json protocol type              | MessagePack protocol type      |
+| ------------------------ | ------------------------------- | ------------------------------ |
+| `Any`                    | `System.Text.Json.JsonDocument` | `System.Dynamic.ExpandoObject` |
+| `BoolValue`              | `bool`                          | `bool`                         |
+| `BytesValue `            | `byte[]`                        | `byte[]`                       |
+| `DoubleValue `           | `double`                        | `double`                       |
+| `Duration`               | `System.TimeSpan`               | `System.TimeSpan`              |
+| `Empty`                  | `void`                          | `void`                         |
+| `FloatValue`             | `float`                         | `float`                        |
+| `Int32Value`             | `int`                           | `int`                          |
+| `Int64Value`             | `long`                          | `long`                         |
+| `StringValue`            | `string`                        | `string`                       |
+| `Timestamp`              | `System.DateTime`               | `System.DateTime`              |
+| `UInt32Value`            | `uint`                          | `uint`                         |
+| `UInt64Value`            | `ulong`                         | `ulong`                        |
+| `Value`                  | `object`                        | `object`                       |
+
+#### MSBuild integration
+In development...
+### TypeScript
 In development...

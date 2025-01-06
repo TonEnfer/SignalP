@@ -30,5 +30,5 @@
 		<InternalsVisibleTo Include="$(MSBuildProjectName).IntegrationTests.Program" />
 		<InternalsVisibleTo Include="$(MSBuildProjectName).IntegrationTests" />
 	</ItemGroup>
-
+	
 </Project>
